@@ -1,7 +1,7 @@
 #pragma once
 #include <iostream>
 #include <fstream>
-
+#define INT_MIN   (-INT_MAX - 1)  
 template<typename TInfo>
 struct NODE
 {
@@ -112,6 +112,7 @@ public:
 		ptrNODE<ValueType>& p = it->next;
 		Delete(p);
 		}
+		size--;
 		return Iterator(it->next);
 	}
 
@@ -121,13 +122,15 @@ public:
 		{
 			add_after(it->prev, data);
 		}
+		size++;
 		return Iterator(it);
 	}
 
 	DLIST()
 	{
-		head = new NODE<TInfo>(0, nullptr, nullptr);
+		head = new NODE<TInfo>(INT_MIN, nullptr, nullptr);
 		tail = head;
+		size = 0;
 	}
 	DLIST(const DLIST<TInfo>& other);
 	~DLIST();
@@ -171,9 +174,9 @@ public:
 	void print();
 	TInfo& Delete(ptrNODE<TInfo>& ptr);
 
-	void split(ptrNODE<TInfo> head, ptrNODE<TInfo>* a, ptrNODE<TInfo>* b);
-	ptrNODE<TInfo> merge(ptrNODE<TInfo> a, ptrNODE<TInfo> b);
-	void mergeSort(ptrNODE<TInfo> head);
+	ptrNODE<TInfo> SortedMerge(ptrNODE<TInfo> a, ptrNODE<TInfo> b);
+	void FrontBackSplit(ptrNODE<TInfo> source, ptrNODE<TInfo>* frontRef, ptrNODE<TInfo>* backRef);
+	void MergeSort(ptrNODE<TInfo>* headRef);
 };
 
 
@@ -202,13 +205,14 @@ bool DLIST<TInfo>::empty()
 
 template<typename TInfo>
 void DLIST<TInfo>::add_after(ptrNODE<TInfo> ptr, TInfo data)
-{
+{	
 	ptrNODE<TInfo> p = new NODE<TInfo>(data, ptr->next, ptr);
 	if (ptr == tail)
 		tail = p;
 	else
 		ptr->next->prev = p;
 	ptr->next = p;
+	size++;
 }
 
 template<typename TInfo>
@@ -220,6 +224,7 @@ void DLIST<TInfo>::add_before(ptrNODE<TInfo> ptr, TInfo data)
 	else
 		ptr->prev->next = p;
 	ptr->prev = p;
+	size++;
 }
 
 template<typename TInfo>
@@ -261,77 +266,80 @@ TInfo& DLIST<TInfo>::Delete(ptrNODE<TInfo>& ptr)
 	static TInfo data;
 	data = p->info;
 	delete p;
+	size--;
 	return data;
 }
 
 template<typename TInfo>
-void DLIST<TInfo>::split(ptrNODE<TInfo> head, ptrNODE<TInfo>* a, ptrNODE<TInfo>* b)
+ptrNODE<TInfo> DLIST<TInfo>::SortedMerge(ptrNODE<TInfo> a, ptrNODE<TInfo> b)
 {
-	ptrNODE<TInfo> slow = head;
-	ptrNODE<TInfo> fast = head->next;
+	ptrNODE<TInfo> result = NULL;
 
-	// advance `fast` by two nodes, and advance `slow` by a single node
-	while (fast != NULL)
-	{
+	/* Base cases */
+	if (a == NULL)
+		return (b);
+	else if (b == NULL)
+		return (a);
+
+	/* Pick either a or b, and recur */
+	if (a->info <= b->info) {
+		result = a;
+		result->next = SortedMerge(a->next, b);
+	}
+	else {
+		result = b;
+		result->next = SortedMerge(a, b->next);
+	}
+	return (result);
+}
+
+template<typename TInfo>
+void DLIST<TInfo>::FrontBackSplit(ptrNODE<TInfo> source, ptrNODE<TInfo>* frontRef, ptrNODE<TInfo>* backRef)
+{
+	ptrNODE<TInfo> fast;
+	ptrNODE<TInfo> slow;
+	slow = source;
+	fast = source->next;
+
+	/* Advance 'fast' two nodes, and advance 'slow' one node */
+	while (fast != NULL) {
 		fast = fast->next;
-		if (fast != NULL)
-		{
+		if (fast != NULL) {
 			slow = slow->next;
 			fast = fast->next;
 		}
 	}
 
-	*b = slow->next;
+	/* 'slow' is before the midpoint in the list, so split it in two
+	at that point. */
+	*frontRef = source;
+	*backRef = slow->next;
 	slow->next = NULL;
 }
 
 template<typename TInfo>
-ptrNODE<TInfo> DLIST<TInfo>::merge(ptrNODE<TInfo> a, ptrNODE<TInfo> b)
+void DLIST<TInfo>::MergeSort(ptrNODE<TInfo>* headRef)
 {
-	// base cases
-	if (a == NULL) {
-		return b;
-	}
+	ptrNODE<TInfo> head = *headRef;
+	ptrNODE<TInfo> a;
+	ptrNODE<TInfo> b;
 
-	if (b == NULL) {
-		return a;
-	}
-
-	// pick either `a` or `b`, and recur
-	if (a->info <= b->info)
-	{
-		a->next = merge(a->next, b);
-		a->next->prev = a;
-		a->prev = NULL;
-		return a;
-	}
-	else {
-		b->next = merge(a, b->next);
-		b->next->prev = b;
-		b->prev = NULL;
-		return b;
-	}
-}
-
-template<typename TInfo>
-void DLIST<TInfo>::mergeSort(ptrNODE<TInfo> head)
-{
-	// base case: 0 or 1 node
-	if (head == NULL || head->next == NULL) {
+	/* Base case -- length 0 or 1 */
+	if ((head == NULL) || (head->next == NULL)) {
 		return;
 	}
 
-	// split head into `a` and `b` sublists
-	ptrNODE<TInfo> a = head, b = NULL;
-	split(head, &a, &b);
+	/* Split head into 'a' and 'b' sublists */
+	FrontBackSplit(head, &a, &b);
 
-	// recursively sort the sublists
-	mergeSort(a);
-	mergeSort(b);
+	/* Recursively sort the sublists */
+	MergeSort(&a);
+	MergeSort(&b);
 
-	// merge the two sorted lists
-	head = merge(a, b);
+	/* answer = merge the two sorted lists together */
+	*headRef = SortedMerge(a, b);
 }
+
 
 template<typename TInfo>
 DLIST<TInfo>::DLIST(const DLIST<TInfo>& other)

@@ -7,11 +7,13 @@ int main()
 	list1.add_after(p1, 2);
 	list1.add_after(p1, 3);
 	list1.add_after(p1, 7);
+	list1.add_after(p1, -3);
+	list1.add_after(p1, 0);
 
 	DLIST<int> list2;
 	ptrNODE<int> p2 = list2.get_head();
+	list2.add_after(p2, 111);
 	list2.add_after(p2, 53);
-	list2.add_after(p2, 6);
 
 	DLIST<int>::Iterator it;
 	std::cout << "List1: ";
@@ -69,7 +71,8 @@ int main()
 	}
 
 	std::cout << "\nMerge Sort List3: ";
-	listResult.mergeSort(listResult.get_head());
+	ptrNODE<int> headPtr = listResult.get_head();
+	listResult.MergeSort(&headPtr);
 	for (it = listResult.begin(); it != listResult.end(); it++)
 	{
 		std::cout << *it << " ";
